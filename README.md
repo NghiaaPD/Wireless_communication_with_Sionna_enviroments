@@ -1,103 +1,103 @@
-# Sionna Test — từ OpenStreetMap đến mô phỏng kênh vô tuyến
+# Sionna Test — from OpenStreetMap to Radio Channel Simulation
 
-> **Lưu ý:** Repo đã bổ sung file OpenStreetMap gốc [map.osm](public/map.osm) và file Blender [test-Manhattan.blend](public/test-Manhattan.blend). Có thể dùng các file này để tiếp tục quy trình với scene mẫu; các bước bên dưới cũng hướng dẫn tạo scene cho khu vực mới.
+> **Note:** The repository includes the original OpenStreetMap file [map.osm](public/map.osm) and the Blender file [test-Manhattan.blend](public/test-Manhattan.blend). Use these files to continue working with the sample scene. The steps below also explain how to create a scene for a different area.
 
-Project dựng môi trường đô thị từ dữ liệu OpenStreetMap, xuất hình học từ Blender sang Mitsuba và dùng NVIDIA Sionna RT để tìm đường truyền giữa máy phát (Tx) và máy thu (Rx). Notebook [test.ipynb](test.ipynb) tính hệ số kênh phức và độ trễ của từng đường truyền ở tần số **3,5 GHz**.
+This project builds an urban environment from OpenStreetMap data, exports geometry from Blender to Mitsuba, and uses NVIDIA Sionna RT to find propagation paths between a transmitter (Tx) and a receiver (Rx). The [test.ipynb](test.ipynb) notebook computes the complex channel coefficients and delays of individual paths at **3.5 GHz**.
 
 ```mermaid
 flowchart LR
-    A["OpenStreetMap: map.osm"] --> B["Blender + Blosm: dựng nhà và đường"]
+    A["OpenStreetMap: map.osm"] --> B["Blender + Blosm: create buildings and roads"]
     B --> C["Convert to Mesh → Triangulate"]
     C --> D["Mitsuba Blender: XML + meshes/*.ply"]
-    D --> E["Notebook: lọc hình học, gán vật liệu ITU"]
-    E --> F["Sionna RT: scene, anten, Tx/Rx"]
-    F --> G["PathSolver → CIR → xem đường truyền"]
+    D --> E["Notebook: filter geometry, assign ITU materials"]
+    E --> F["Sionna RT: scene, antennas, Tx/Rx"]
+    F --> G["PathSolver → CIR → visualize paths"]
 ```
 
-Tên công cụ xuất scene là **Mitsuba**, add-on là **Mitsuba Blender**. Blosm phụ trách nhập dữ liệu bản đồ; Mitsuba Blender phụ trách xuất scene. Sionna RT dùng scene đó để mô phỏng truyền sóng. [Giới thiệu Sionna RT](https://nvlabs.github.io/sionna/v2.1.0/rt/tutorials/Introduction.html).
+**Mitsuba** is the renderer, and **Mitsuba Blender** is the add-on used to export the scene. Blosm imports map data; Mitsuba Blender exports the scene; Sionna RT uses that scene to simulate radio propagation. See the [Sionna RT introduction](https://nvlabs.github.io/sionna/v2.1.0/rt/tutorials/Introduction.html).
 
-## 1. File và môi trường của project
+## 1. Project Files and Environment
 
 ```text
 Sionna_test/
 ├── README.md
 ├── .python-version                 # Python 3.11
-├── pyproject.toml                  # Khai báo dependency
-├── uv.lock                         # Khóa phiên bản dependency
-├── test.ipynb                      # Toàn bộ quy trình Python hiện tại
+├── pyproject.toml                  # Dependency declarations
+├── uv.lock                         # Locked dependency versions
+├── test.ipynb                      # Current Python workflow
 └── public/
-    ├── map.osm                     # Dữ liệu OpenStreetMap gốc
-    ├── test-Manhattan.blend         # File Blender của scene mẫu
-    ├── test-Manhattan.xml           # Scene xuất từ Blender, 26 shape PLY
-    ├── test-Manhattan-materials.xml # Scene sau xử lý, 23 shape PLY
-    └── meshes/                     # 26 file hình học .ply
+    ├── map.osm                     # Original OpenStreetMap data
+    ├── test-Manhattan.blend         # Blender file for the sample scene
+    ├── test-Manhattan.xml           # Blender export: 26 PLY shapes
+    ├── test-Manhattan-materials.xml # Processed scene: 23 PLY shapes
+    └── meshes/                     # 26 .ply geometry files
 ```
 
-Repo hiện có dữ liệu OpenStreetMap gốc, file Blender, scene đã xuất và notebook. Khi tạo scene cho khu vực mới, nên lưu kèm file `.osm`, `.blend`, phạm vi tọa độ và phiên bản Blender/add-on để thuận tiện tái tạo.
+The repository contains the original OpenStreetMap data, the Blender file, the exported scene, and the notebook. For a new area, save the `.osm` and `.blend` files, geographic bounds, and Blender/add-on versions so the scene can be reproduced.
 
-Các phiên bản chính trong `uv.lock`:
+Main versions in `uv.lock`:
 
-| Thành phần | Phiên bản |
+| Component | Version |
 | --- | --- |
-| Python được chọn trong `.python-version` | 3.11 |
+| Python selected in `.python-version` | 3.11 |
 | Sionna / Sionna RT | 2.2.0 / 2.2.0 |
 | Mitsuba | 3.9.1 |
 | Dr.Jit | 1.5.0 |
 | JupyterLab | 4.6.4 |
 | ipywidgets / pythreejs | 8.1.9 / 2.4.2 |
 
-`pyproject.toml` cho phép Python từ 3.11 và khai báo các phiên bản tối thiểu; dùng `uv.lock` để tái tạo môi trường hiện tại. Blender có Python riêng: cài dependency vào `.venv` của project không đồng nghĩa đã cài chúng cho add-on trong Blender.
+`pyproject.toml` allows Python 3.11 or later and declares minimum dependency versions. Use `uv.lock` to reproduce the current environment. Blender has its own Python interpreter: installing dependencies into the project's `.venv` does not install them for the Blender add-on.
 
-## 2. Lấy file `.osm` từ OpenStreetMap
+## 2. Download an `.osm` File from OpenStreetMap
 
-1. Mở [OpenStreetMap](https://www.openstreetmap.org), tìm khu vực cần mô phỏng.
-2. Chọn **Export**, khoanh vùng nhỏ bao quanh vị trí Tx/Rx và các công trình lân cận.
-3. Xuất dữ liệu **OpenStreetMap XML**, lưu thành `map.osm`. Đây là dữ liệu bản đồ để Blosm đọc.
-4. Nếu vùng quá lớn khiến export thất bại, thu nhỏ vùng hoặc dùng nguồn trích xuất như Overpass/Geofabrik. [Hướng dẫn export của OpenStreetMap](https://wiki.openstreetmap.org/wiki/Export).
+1. Open [OpenStreetMap](https://www.openstreetmap.org) and find the area to simulate.
+2. Select **Export** and mark a small area containing the Tx/Rx locations and nearby buildings.
+3. Export **OpenStreetMap XML** data and save it as `map.osm`. Blosm reads this map data.
+4. If the export fails because the area is too large, reduce the area or use an extract provider such as Overpass/Geofabrik. See the [OpenStreetMap export guide](https://wiki.openstreetmap.org/wiki/Export).
 
-Giữ lại file nguồn và phạm vi đã chọn. Scene của repo mang tên `test-Manhattan`, nhưng chỉ tên file chưa đủ để khôi phục chính xác phạm vi địa lý ban đầu.
+Keep the source file and the selected bounds. The scene in this repository is named `test-Manhattan`, but its filename alone does not identify its exact geographic extent.
 
-## 3. Cài Blender, Blosm và Mitsuba Blender
+## 3. Install Blender, Blosm, and Mitsuba Blender
 
-Trước tiên, tải và cài **[Blender](https://www.blender.org/download/)**. Sau đó cài hai add-on Blosm và Mitsuba Blender bên trong Blender. Chọn gói add-on phù hợp với phiên bản Blender đang dùng; phần sửa lỗi bên dưới có ví dụ đường dẫn cho Blender **5.2** trên Windows.
+First, download and install **[Blender](https://www.blender.org/download/)**. Then install the Blosm and Mitsuba Blender add-ons inside Blender. Choose add-on packages that match your Blender version. The troubleshooting instructions below include an example path for Blender **5.2** on Windows.
 
 ### Blosm
 
-Tải gói cài từ [thư mục Google Drive được chia sẻ](https://drive.google.com/drive/folders/10M3wN_anZPIwvFthPcGEjvzPF9ZByNf_?usp=sharing) hoặc liên kết của [dự án Blosm](https://github.com/vvoovv/blosm); bản cơ bản có chức năng nhập OpenStreetMap.
+Download the installation package from the [shared Google Drive folder](https://drive.google.com/drive/folders/10M3wN_anZPIwvFthPcGEjvzPF9ZByNf_?usp=sharing) or the links provided by the [Blosm project](https://github.com/vvoovv/blosm). The basic version supports OpenStreetMap imports.
 
-1. Giữ nguyên file ZIP. Trong Blender, mở **Edit → Preferences → Add-ons**, dùng **Install… / Install from Disk…** tùy phiên bản, rồi bật Blosm.
-2. Trong cấu hình add-on, đặt thư mục lưu dữ liệu tải về bằng đường dẫn tuyệt đối.
-3. Trong 3D Viewport, nhấn `N` để mở thanh bên và tìm tab **Blosm**. [Hướng dẫn cài Blosm](https://github.com/vvoovv/blosm/wiki/Documentation#installation).
+1. Keep the ZIP archive intact. In Blender, open **Edit → Preferences → Add-ons**, use **Install… / Install from Disk…**, depending on your version, and enable Blosm.
+2. In the add-on preferences, set an absolute path for the downloaded data directory.
+3. Press `N` in the 3D Viewport to open the sidebar and locate the **Blosm** tab. See the [Blosm installation guide](https://github.com/vvoovv/blosm/wiki/Documentation#installation).
 
 ### Mitsuba Blender
 
-Tải ZIP từ [thư mục Google Drive được chia sẻ](https://drive.google.com/drive/folders/10M3wN_anZPIwvFthPcGEjvzPF9ZByNf_?usp=sharing) hoặc [Mitsuba Blender Releases](https://github.com/mitsuba-renderer/mitsuba-blender/releases). Chọn gói tương ứng với hệ điều hành và phiên bản Blender đang dùng.
+Download the ZIP from the [shared Google Drive folder](https://drive.google.com/drive/folders/10M3wN_anZPIwvFthPcGEjvzPF9ZByNf_?usp=sharing) or [Mitsuba Blender Releases](https://github.com/mitsuba-renderer/mitsuba-blender/releases). Choose a package matching your operating system and Blender version.
 
-- Với gói **extension** cho Blender 4.2 trở lên: **Edit → Preferences → Get Extensions → menu → Install from Disk…**, chọn ZIP và bật extension. Gói release mới có kèm dependency Mitsuba/Dr.Jit.
-- Với gói **add-on cũ**: cài qua **Add-ons → Install…**, bật add-on; nếu có nút **Install dependencies using pip**, chạy bước đó trong cấu hình add-on.
+- For **extension** packages targeting Blender 4.2 or later: open **Edit → Preferences → Get Extensions → menu → Install from Disk…**, select the ZIP, and enable the extension. Newer release packages bundle the Mitsuba/Dr.Jit dependencies.
+- For **legacy add-on** packages: install through **Add-ons → Install…** and enable the add-on. If its preferences include **Install dependencies using pip**, run that step.
 
-**Lưu ý khi Install dependencies using pip thất bại:** Một số bản add-on cũ khóa Mitsuba ở `3.5.0` trong file `mitsuba-blender/__init__.py`. Nếu log báo không tìm thấy bản phù hợp với `mitsuba==3.5.0`, sửa phiên bản này thành **`3.6.0`**. [Mã nguồn khai báo phiên bản](https://github.com/mitsuba-renderer/mitsuba-blender/blob/v0.4.0/mitsuba-blender/__init__.py), [báo cáo lỗi dependency 3.5.0](https://github.com/mitsuba-renderer/mitsuba-blender/issues/125).
+**If Install dependencies using pip fails:** Some older add-on versions pin Mitsuba to `3.5.0` in `mitsuba-blender/__init__.py`. If the log reports that no matching distribution is available for `mitsuba==3.5.0`, change this version to **`3.6.0`**. See the [dependency version declaration](https://github.com/mitsuba-renderer/mitsuba-blender/blob/v0.4.0/mitsuba-blender/__init__.py) and the [Mitsuba 3.5.0 dependency issue](https://github.com/mitsuba-renderer/mitsuba-blender/issues/125).
 
-1. Mở file `__init__.py` ở thư mục gốc của **add-on Mitsuba Blender đã cài**, thường nằm trong `scripts/addons/mitsuba-blender/` của Blender.
-2. Tìm dòng khai báo và sửa như sau:
+1. Open `__init__.py` in the root directory of the **installed Mitsuba Blender add-on**, usually under Blender's `scripts/addons/mitsuba-blender/` directory.
+2. Find and update the version declaration:
 
    ```diff
    -DEPS_MITSUBA_VERSION = '3.5.0'
    +DEPS_MITSUBA_VERSION = '3.6.0'
    ```
 
-3. Lưu file, đóng rồi mở lại Blender để nạp thay đổi.
-4. Vào cấu hình Mitsuba Blender và bấm lại **Install dependencies using pip** (hoặc **Update dependencies**), rồi kiểm tra add-on khởi tạo thành công và có mục export Mitsuba.
+3. Save the file and restart Blender to load the change.
+4. Open the Mitsuba Blender preferences and click **Install dependencies using pip** again (or **Update dependencies**). Check that the add-on initializes successfully and the Mitsuba export option appears.
 
-Phiên bản sửa ở đây là dependency của add-on trong Python của Blender; môi trường mô phỏng của project vẫn dùng Mitsuba `3.9.1` theo `uv.lock`.
+This change applies to the add-on dependency in Blender's Python environment. The project's simulation environment uses Mitsuba `3.9.1`, as locked in `uv.lock`.
 
-**Lưu ý khi đã sửa dependency nhưng vẫn không export được trên Blender 5.x:** Nếu gặp lỗi `ExportMitsuba.__init__() takes 1 positional argument but 2 were given`, mở file `io/__init__.py` của add-on. Với Blender 5.2 trên Windows và tài khoản `Admin`, đường dẫn là:
+**If export still fails on Blender 5.x after fixing the dependency:** If you encounter `ExportMitsuba.__init__() takes 1 positional argument but 2 were given`, open the add-on's `io/__init__.py` file. For Blender 5.2 on Windows with the `Admin` account, the path is:
 
 ```text
 C:\Users\Admin\AppData\Roaming\Blender Foundation\Blender\5.2\scripts\addons\mitsuba-blender\io\__init__.py
 ```
 
-Trong class `ExportMitsuba`, thay phương thức `__init__` cũ bằng đoạn sau, giữ đúng thụt lề trong class:
+Inside the `ExportMitsuba` class, replace the existing `__init__` method with the following, keeping the indentation within the class:
 
 ```python
     def __init__(self, *args, **kwargs):
@@ -105,52 +105,52 @@ Trong class `ExportMitsuba`, thay phương thức `__init__` cũ bằng đoạn 
         self.reset()
 ```
 
-Lưu file, đóng rồi mở lại Blender và thử **File → Export → Mitsuba (.xml)**. Thay `Admin` và `5.2` theo tài khoản, phiên bản Blender đang dùng. Đoạn khởi tạo này cũng có trong [mã nguồn exporter Mitsuba Blender](https://github.com/mitsuba-renderer/mitsuba-blender/blob/master/mitsuba-blender/io/__init__.py).
+Save the file, restart Blender, and try **File → Export → Mitsuba (.xml)** again. Replace `Admin` and `5.2` with your account name and Blender version. This constructor also appears in the [Mitsuba Blender exporter source](https://github.com/mitsuba-renderer/mitsuba-blender/blob/master/mitsuba-blender/io/__init__.py).
 
-Chọn hướng cài theo README của chính release tải về. Sau khi cài, kiểm tra mục xuất Mitsuba trong **File → Export**. [Tài liệu Mitsuba Blender](https://github.com/mitsuba-renderer/mitsuba-blender).
+Follow the installation instructions in the README for the release you download. After installation, check for Mitsuba under **File → Export**. See the [Mitsuba Blender documentation](https://github.com/mitsuba-renderer/mitsuba-blender).
 
-## 4. Nhập `.osm` và chuẩn bị hình học trong Blender
+## 4. Import `.osm` and Prepare Geometry in Blender
 
-### Nhập bằng Blosm
+### Import with Blosm
 
-1. Tạo scene làm việc, bỏ cube mặc định nếu không sử dụng.
-2. Mở tab **Blosm**, chọn loại dữ liệu **OpenStreetMap**, nguồn **file** và trỏ tới `map.osm`.
-3. Bật nhập **Buildings** và **Roads/Paths**, chọn **Import**. Nếu cần địa hình, nhập terrain trước và chọn nó làm bề mặt đặt đối tượng. [Nhập file OSM cục bộ](https://github.com/vvoovv/blosm/wiki/Documentation#openstreetmap-import-from-a-local-file).
+1. Create a working scene and remove the default cube if it is not needed.
+2. Open the **Blosm** tab, select **OpenStreetMap** as the data type and **file** as the source, then select `map.osm`.
+3. Enable **Buildings** and **Roads/Paths**, then select **Import**. If terrain is needed, import it first and select it as the surface for placing objects. See [importing a local OSM file](https://github.com/vvoovv/blosm/wiki/Documentation#openstreetmap-import-from-a-local-file).
 
-Blosm dựng nhà từ thông tin chiều cao/số tầng; đường và lối đi có thể được tạo dưới dạng **Curve có profile tạo bề rộng**. Kiểm tra chiều cao công trình, bề rộng đường và cao độ sau khi nhập. [Các loại hình học Blosm tạo ra](https://github.com/vvoovv/blosm/wiki/Import-OpenStreetMap-%28.osm%29).
+Blosm builds buildings from height/floor information. Roads and paths may be created as **curves with a profile that gives them width**. Check building heights, road widths, and elevations after import. See the [geometry types generated by Blosm](https://github.com/vvoovv/blosm/wiki/Import-OpenStreetMap-%28.osm%29).
 
-Giữ quy ước tên như `map_osm_buildings...`, `map_osm_roads...`, `map_osm_paths...`: notebook phân loại bằng chuỗi `building`, `road`, `path` trong ID hoặc tên file mesh. Đối tượng đổi thành tên chung như `Cube.001` có thể bị loại ở bước xử lý XML.
+Keep names such as `map_osm_buildings...`, `map_osm_roads...`, and `map_osm_paths...`: the notebook classifies shapes by searching for `building`, `road`, and `path` in their IDs or mesh filenames. Objects renamed to generic names such as `Cube.001` may be excluded during XML processing.
 
-### Convert to Mesh và Triangulate
+### Convert to Mesh and Triangulate
 
-Sionna RT 2.2.0 kiểm tra hình học đầu vào là **triangle mesh**. Vì vậy cần chuyển Curve/surface thành mesh và bảo đảm các mặt là tam giác. Đây là yêu cầu hình học của bộ nạp scene Sionna RT, không phải một chế độ render ảnh riêng của card NVIDIA. [Mã nguồn kiểm tra scene](https://nvlabs.github.io/sionna/_modules/sionna/rt/scene.html).
+Sionna RT 2.2.0 checks that input geometry is a **triangle mesh**. Convert curves/surfaces to meshes and ensure their faces are triangles. This is a geometry requirement of the Sionna RT scene loader, rather than a separate NVIDIA image-rendering mode. See the [scene validation source](https://nvlabs.github.io/sionna/_modules/sionna/rt/scene.html).
 
-Thực hiện trên bản scene đã lưu dự phòng:
+Save a backup of the scene before proceeding:
 
-1. Trong **Object Mode**, chọn các đối tượng nhà và đường cần xuất; bỏ chọn camera, đèn và các đối tượng phụ trợ.
-2. Chọn **Object → Convert → Mesh**; có thể dùng `F3`, tìm **Convert Mesh**. Với đường, kiểm tra Curve đã có bề rộng/profile trước khi chuyển: một đường chỉ có cạnh sẽ chưa tạo được bề mặt phản xạ.
-3. Với các mesh đã chọn, vào **Edit Mode**, nhấn `A` chọn toàn bộ hình học, sau đó `Ctrl+T` (**Face → Triangulate Faces**) để chia mặt thành tam giác. [Thao tác Triangulate trong Blender](https://docs.blender.org/manual/en/latest/modeling/meshes/editing/face/triangulate_faces.html).
-4. Kiểm tra hướng mặt bằng **Face Orientation**; sửa normal sai và loại mặt suy biến nếu có. Trở về **Object Mode**.
-5. Kiểm tra tỷ lệ kích thước, trục đứng và vị trí tương đối giữa nhà/đường. Quy ước làm việc cho project là tọa độ cục bộ tính bằng **mét**, trục `Z` biểu diễn cao độ.
+1. In **Object Mode**, select the buildings and roads to export. Deselect cameras, lights, and helper objects.
+2. Select **Object → Convert → Mesh**, or press `F3` and search for **Convert Mesh**. For roads, check that the curves have width/a profile before conversion: edges alone do not provide a reflecting surface.
+3. With the meshes selected, enter **Edit Mode**, press `A` to select all geometry, then press `Ctrl+T` (**Face → Triangulate Faces**) to split the faces into triangles. See [Triangulate Faces in Blender](https://docs.blender.org/manual/en/latest/modeling/meshes/editing/face/triangulate_faces.html).
+4. Use **Face Orientation** to inspect face directions. Correct normals and remove degenerate faces where necessary, then return to **Object Mode**.
+5. Check scale, the vertical axis, and the relative positions of buildings and roads. This project uses local coordinates in **meters**, with `Z` representing elevation.
 
-**Convert to Mesh** tạo dữ liệu mesh từ đối tượng; **Triangulate** chia các mặt của mesh thành tam giác. Đổi tên file hoặc sửa `type="..."` trong XML không thực hiện hai phép chuyển đổi hình học này.
+**Convert to Mesh** creates mesh data from an object; **Triangulate** splits mesh faces into triangles. Renaming a file or editing `type="..."` in XML does not perform either geometry conversion.
 
-## 5. Xuất XML và mesh bằng Mitsuba Blender
+## 5. Export XML and Meshes with Mitsuba Blender
 
-Mở **File → Export → Mitsuba (.xml)**, lưu vào `public/test-Manhattan.xml` nếu muốn dùng nguyên đường dẫn của notebook. Khi thay scene mẫu, nên xuất ra tên mới trước để giữ bản gốc.
+Open **File → Export → Mitsuba (.xml)** and save to `public/test-Manhattan.xml` to use the notebook's existing path. When replacing the sample scene, export under a new name first to preserve the original.
 
-Các tùy chọn cần kiểm tra khi exporter có hỗ trợ:
+Check these settings when supported by your exporter:
 
-| Tùy chọn | Cách dùng cho notebook này |
+| Option | Setting for this notebook |
 | --- | --- |
-| Selection Only | Bật nếu đã chọn đủ nhà và đường cần xuất |
-| Split File | Tắt: cell xử lý hiện đọc trực tiếp `<shape>` ở cấp gốc XML |
-| Export IDs | Có thể bật để giữ tên đối tượng, giúp nhận diện nhóm |
-| Forward/Up | Kiểm tra scene xuất ra vẫn có hướng và tỷ lệ phù hợp với Tx/Rx |
+| Selection Only | Enable after selecting all buildings and roads to export |
+| Split File | Disable: the processing cell currently reads `<shape>` elements directly under the XML root |
+| Export IDs | Optionally enable to preserve object names and help identify groups |
+| Forward/Up | Check that the exported orientation and scale agree with the Tx/Rx coordinates |
 
-Tên tùy chọn tùy release; xem [hướng dẫn exporter](https://github.com/mitsuba-renderer/mitsuba-blender/wiki/Exporting-a-Blender-scene).
+Option names vary by release. See the [exporter guide](https://github.com/mitsuba-renderer/mitsuba-blender/wiki/Exporting-a-Blender-scene).
 
-Đầu ra cần giữ cùng nhau:
+Keep these output files together:
 
 ```text
 public/
@@ -162,7 +162,7 @@ public/
     └── ...
 ```
 
-Ví dụ tham chiếu hình học trong XML hiện tại:
+Example geometry reference from the current XML:
 
 ```xml
 <shape type="ply" id="elm__18" name="elm__18">
@@ -172,72 +172,72 @@ Ví dụ tham chiếu hình học trong XML hiện tại:
 </shape>
 ```
 
-`meshes/...` được tìm tương đối với file scene. Khi sao chép sang máy khác, mang theo cả XML và thư mục `meshes`. File XML đơn lẻ không chứa toàn bộ hình học.
+`meshes/...` is resolved relative to the scene file. When copying the scene to another machine, include both the XML and the `meshes` directory. The XML file alone does not contain all geometry.
 
-## 6. Cài môi trường và mở notebook
+## 6. Set Up the Environment and Open the Notebook
 
-Cài [uv](https://docs.astral.sh/uv/getting-started/installation/), mở terminal tại thư mục gốc project rồi chạy:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), open a terminal at the project root, and run:
 
 ```bash
 uv sync --locked
 uv run --locked jupyter lab test.ipynb
 ```
 
-Trong JupyterLab, dùng kernel của `.venv`. Nếu dùng VS Code, mở `test.ipynb` và chọn interpreter `.venv/bin/python` trên Linux hoặc `.venv\Scripts\python.exe` trên Windows. Thư mục làm việc phải là gốc project để các đường dẫn `public/...` đúng.
+In JupyterLab, use the kernel from `.venv`. In VS Code, open `test.ipynb` and select `.venv/bin/python` on Linux or `.venv\Scripts\python.exe` on Windows. The working directory must be the project root so that `public/...` paths resolve correctly.
 
-Cell đầu notebook chọn backend CUDA trước khi import Sionna RT:
+The first notebook cell selects the CUDA backend before importing Sionna RT:
 
 ```python
 import mitsuba as mi
 mi.set_variant("cuda_ad_mono_polarized")
 ```
 
-Để chạy nguyên notebook, máy cần GPU NVIDIA và driver hoạt động. Có thể kiểm tra bằng `nvidia-smi`, sau đó kiểm tra backend trong môi trường project:
+Running the notebook unchanged requires an NVIDIA GPU and a working driver. Check with `nvidia-smi`, then test the backend in the project environment:
 
 ```bash
 uv run --locked python -c 'import mitsuba as mi; mi.set_variant("cuda_ad_mono_polarized"); print(mi.variant())'
 ```
 
-Sionna RT cài trong project cũng hỗ trợ backend CPU qua LLVM. Nếu máy không dùng được CUDA, đổi dòng chọn variant thành dòng dưới đây, rồi **restart kernel và chạy lại từ đầu**; LLVM phải khả dụng trong môi trường:
+The installed Sionna RT version also supports a CPU backend through LLVM. If CUDA is unavailable, change the variant selection to the line below, then **restart the kernel and rerun from the beginning**. LLVM must be available in the environment:
 
 ```python
 mi.set_variant("llvm_ad_mono_polarized")
 ```
 
-Notebook hiện chọn CUDA cố định, chưa tự fallback sang CPU.
+The notebook currently selects CUDA explicitly and does not automatically fall back to the CPU.
 
-## 7. Từ scene Blender đến scene có vật liệu vô tuyến
+## 7. Convert the Blender Export to a Scene with Radio Materials
 
-Chạy notebook từ trên xuống. Cell xử lý XML ngay sau cell import đọc `public/test-Manhattan.xml` và ghi lại `public/test-Manhattan-materials.xml`.
+Run the notebook from top to bottom. The XML processing cell immediately after the import cell reads `public/test-Manhattan.xml` and writes `public/test-Manhattan-materials.xml`.
 
-Cell này thực hiện:
+This cell:
 
-1. Tạo scene XML mới và hai ID vật liệu ITU.
-2. Duyệt các `<shape>` trực tiếp trong XML gốc; chấp nhận loại `ply`, `obj`, `serialized`. Đây là kiểm tra loại khai báo, chưa thay cho kiểm tra hình học bên trong file mesh.
-3. Phân nhóm theo ID và tên file, sao chép shape được chọn cùng đường dẫn và transform.
-4. Bỏ BSDF, tham chiếu vật liệu và emitter cũ trong shape; gắn vật liệu mới. Camera, đèn và cấu hình render cấp scene không được chép sang scene mới.
+1. Creates a new scene XML and two ITU material IDs.
+2. Iterates over `<shape>` elements directly under the original XML root, accepting `ply`, `obj`, and `serialized` types. This checks the declared type; it does not validate the geometry inside each mesh file.
+3. Groups shapes by ID and filename, copying selected shapes with their paths and transforms.
+4. Removes existing BSDFs, material references, and emitters inside each shape, then assigns the new material. Scene-level cameras, lights, and rendering settings are not copied.
 
-| Chuỗi nhận diện trong ID/tên file | ID trong XML mới | Vật liệu Sionna | Số mesh của scene mẫu |
+| Matching text in ID/filename | New XML material ID | Sionna material | Sample mesh count |
 | --- | --- | --- | --- |
 | `building` | `mat-itu_brick` | `brick` | 15 |
-| `road` hoặc `path` | `mat-itu_asphalt_concrete` | `asphalt_concrete` | 8 |
-| Không khớp các nhóm trên | Bỏ qua | — | 3 |
+| `road` or `path` | `mat-itu_asphalt_concrete` | `asphalt_concrete` | 8 |
+| No match | Skipped | — | 3 |
 
-Ba mesh bị bỏ qua ở scene hiện tại là `map_osm_areas_pedestrian.ply`, `map_osm_vegetation.ply`, `map_osm_water.ply`. Như vậy, khu vực pedestrian mang tên `areas_pedestrian` **không** được giữ như mesh `roads_pedestrian`.
+The three skipped meshes are `map_osm_areas_pedestrian.ply`, `map_osm_vegetation.ply`, and `map_osm_water.ply`. Consequently, the pedestrian area named `areas_pedestrian` is excluded, while `roads_pedestrian` is retained.
 
-Vật liệu màu/texture trong Blender phục vụ hiển thị. Ở đây các ID `mat-itu_...` được bộ nạp Sionna chuyển thành vật liệu vô tuyến ITU. Toàn bộ nhà, kể cả mái, đang được giả định là gạch; toàn bộ đường/lối đi là asphalt concrete. Đây là giả định của mô hình, chưa phải vật liệu khảo sát từng công trình.
+Blender colors and textures control appearance. Here, the Sionna loader converts `mat-itu_...` IDs into ITU radio materials. All buildings, including roofs, are modeled as brick, and all roads/paths as asphalt concrete. These are modeling assumptions rather than surveyed materials for each structure.
 
-Output của cell với dữ liệu hiện tại:
+For the current data, the cell produces the following output, with its labels translated into English here:
 
 ```text
-Số mesh theo nhóm: {'buildings': 15, 'roads': 8}
-Đối tượng bỏ qua: ['elm__34 meshes/map_osm_areas_pedestrian.ply', 'elm__52 meshes/map_osm_vegetation.ply', 'elm__54 meshes/map_osm_water.ply']
-File mới: public/test-Manhattan-materials.xml
+Mesh counts by group: {'buildings': 15, 'roads': 8}
+Skipped objects: ['elm__34 meshes/map_osm_areas_pedestrian.ply', 'elm__52 meshes/map_osm_vegetation.ply', 'elm__54 meshes/map_osm_water.ply']
+Output file: public/test-Manhattan-materials.xml
 ```
 
-Cell này **không chuyển Curve sang mesh, không triangulate và không sửa file PLY**. Những việc đó phải hoàn tất ở Blender. Nếu muốn giữ terrain, cây hoặc mặt nước, cần mở rộng quy tắc lọc và gán vật liệu tương ứng trong notebook.
+This cell **does not convert curves to meshes, triangulate faces, or modify PLY files**. Complete those steps in Blender. To retain terrain, vegetation, or water, extend the filtering rules and assign appropriate radio materials in the notebook.
 
-Tiếp theo nạp scene và kiểm tra vật liệu:
+Next, load the scene and inspect its materials:
 
 ```python
 scene = load_scene("public/test-Manhattan-materials.xml")
@@ -246,11 +246,11 @@ for name, obj in scene.objects.items():
 scene.preview(point_picker=True)
 ```
 
-`load_scene()` mặc định gộp mesh cùng vật liệu, nên scene mẫu có thể chỉ hiện hai object `no-name-1`, `no-name-2` dù XML có 23 shape. Khi cần kiểm tra riêng từng mesh, có thể nạp bằng `load_scene(..., merge_shapes=False)`.
+By default, `load_scene()` merges meshes that share a material. The sample scene may therefore show only two objects, `no-name-1` and `no-name-2`, even though the XML contains 23 shapes. To inspect meshes individually, use `load_scene(..., merge_shapes=False)`.
 
-## 8. Đặt tần số, anten và Tx/Rx
+## 8. Configure Frequency, Antennas, and Tx/Rx
 
-Các cell tiếp theo cấu hình một anten cho mỗi phía:
+The next cells configure one antenna at each end:
 
 ```python
 scene.frequency = 3.5e9
@@ -270,15 +270,15 @@ scene.add(Transmitter(name="tx", position=[-110.653, -73.533, 5.800 + 1.5]))
 scene.add(Receiver(name="rx", position=[-23.614, 136.679, 5.800 + 1.5]))
 ```
 
-`pattern="iso"` chọn mẫu anten đẳng hướng; `polarization="V"` là phân cực đứng. Khoảng cách phần tử được tính theo bước sóng, nhưng với mảng 1×1 chưa có khoảng cách giữa nhiều phần tử.
+`pattern="iso"` selects an isotropic antenna pattern; `polarization="V"` specifies vertical polarization. Element spacing is expressed in wavelengths, although a 1×1 array has no spacing between multiple elements.
 
-**`position=[x, y, z]` là tọa độ Cartesian cục bộ, đơn vị mét.** Tiêu đề cell `Init latitude & longtitude for each station` trong notebook hiện chưa diễn đạt đúng dữ liệu truyền vào. Các số này không phải kinh độ/vĩ độ.
+**`position=[x, y, z]` uses local Cartesian coordinates in meters.** The notebook heading `Init latitude & longtitude for each station` does not accurately describe these values: they are not latitude/longitude.
 
-Cả Tx và Rx của ví dụ có `z = 7.3 m`. Biểu thức `5.800 + 1.5` chỉ có nghĩa anten cao 1,5 m trên bề mặt nếu cao độ bề mặt tại vị trí đó thực sự là 5,8 m. Dùng point picker trong preview để lấy tọa độ bề mặt, sau đó cộng chiều cao anten. Với bản đồ mới, phải chọn lại cả `x`, `y`, `z`; muốn đặt từ GPS cần phép chuyển tọa độ cùng hệ quy chiếu/gốc với scene.
+Both Tx and Rx in this example have `z = 7.3 m`. The expression `5.800 + 1.5` places an antenna 1.5 m above the surface only if the local surface elevation is actually 5.8 m. Use the preview's point picker to obtain a surface position, then add the antenna height. For a new map, select new `x`, `y`, and `z` values. Placing devices from GPS coordinates requires a conversion using the same coordinate system and origin as the scene.
 
-## 9. Tìm đường truyền và lấy CIR
+## 9. Find Propagation Paths and Extract the CIR
 
-Notebook dùng API `PathSolver` của Sionna RT 2.2.0:
+The notebook uses the Sionna RT 2.2.0 `PathSolver` API:
 
 ```python
 solver = PathSolver()
@@ -293,19 +293,19 @@ paths = solver(
 )
 ```
 
-Cấu hình xét đường trực tiếp khi không bị chắn và phản xạ gương, với độ sâu tương tác tối đa 3. Phản xạ khuếch tán và khúc xạ đang tắt; nhiễu xạ cũng tắt theo mặc định của phiên bản này. `los=True` cho phép tìm LoS, không bảo đảm mọi vị trí Tx/Rx đều có LoS.
+This configuration considers unobstructed direct paths and specular reflections, with a maximum interaction depth of 3. Diffuse reflection and refraction are disabled; diffraction is also disabled by default in this version. `los=True` enables the search for LoS paths but does not guarantee that the Tx/Rx locations have line of sight.
 
-Lấy đáp ứng xung kênh (CIR):
+Extract the channel impulse response (CIR):
 
 ```python
 a, tau = paths.cir(normalize_delays=False, out_type="numpy")
 
-# Rx 0, anten Rx 0, Tx 0, anten Tx 0, mọi path, thời điểm 0
+# Rx 0, Rx antenna 0, Tx 0, Tx antenna 0, all paths, time step 0
 coefficients = a[0, 0, 0, 0, :, 0]
 delays = tau[0, 0, :]
 valid = (delays >= 0) & (np.abs(coefficients) > 0)
 
-print("Số đường truyền tìm được:", np.count_nonzero(valid))
+print("Number of paths found:", np.count_nonzero(valid))
 for index in np.flatnonzero(valid):
     print(
         f"Path {index}: "
@@ -316,30 +316,30 @@ for index in np.flatnonzero(valid):
 scene.preview(paths=paths)
 ```
 
-- `a` là hệ số kênh phức; `abs(a)` là độ lớn hệ số, không phải công suất thu tính bằng dBm.
-- `tau` có đơn vị giây; nhân `1e9` để hiển thị nanosecond.
-- `normalize_delays=False` giữ độ trễ truyền sóng thay vì đưa đường đến sớm nhất về mốc 0.
-- Cách lấy `tau[0, 0, :]` phù hợp với `synthetic_array=True`, mặc định đang dùng. Nếu đổi cấu hình mảng, cần kiểm tra lại shape trước khi lập chỉ mục.
+- `a` contains complex channel coefficients; `abs(a)` is their magnitude, not received power in dBm.
+- `tau` is in seconds; multiply by `1e9` to display nanoseconds.
+- `normalize_delays=False` preserves propagation delays instead of shifting the earliest arrival to zero.
+- Indexing with `tau[0, 0, :]` matches `synthetic_array=True`, the current default. If you change the array configuration, inspect the output shapes before indexing.
 
-Với scene mẫu và cấu hình trên, lần kiểm tra phần tính toán ngày **18/10/2026** trả về **10 đường truyền hợp lệ**, `a.shape = (1, 1, 1, 1, 10, 1)` và `tau.shape = (1, 1, 10)`. Một đường có độ trễ khoảng `758.92 ns` và `|a| ≈ 2.996e-05`. Thứ tự path có thể khác giữa các lần chạy; kết quả này gắn với scene, vật liệu và phiên bản hiện tại.
+With the sample scene and configuration above, the computation checked on **18 October 2026** returned **10 valid propagation paths**, with `a.shape = (1, 1, 1, 1, 10, 1)` and `tau.shape = (1, 1, 10)`. One path had a delay of approximately `758.92 ns` and `|a| ≈ 2.996e-05`. Path order may vary between runs; these results apply to the current scene, materials, and dependency versions.
 
-Phần tính toán đã được chạy lại bằng backend CUDA. Các thao tác Blender và giao diện preview tương tác chưa được kiểm chứng lại trong lần viết tài liệu này.
+The computation was rerun using the CUDA backend. Blender operations and the interactive preview interface were not revalidated during the documentation update.
 
-## 10. Lỗi thường gặp và cách xử lý
+## 10. Troubleshooting
 
-| Hiện tượng | Điểm cần kiểm tra |
+| Symptom | What to check |
 | --- | --- |
-| Không thấy tab Blosm | Kiểm tra add-on đã bật; nhấn `N` trong 3D Viewport; kiểm tra thư mục dữ liệu |
-| Không thấy mục export Mitsuba | Kiểm tra gói add-on/extension phù hợp Blender và dependency trong Python của Blender |
-| `Only triangle meshes are supported` | Kiểm tra loại shape được export; chuyển hình học sang mesh và triangulate trong Blender, rồi xuất lại |
-| `Còn hình học không hỗ trợ` | Cell XML gặp loại ngoài `ply`, `obj`, `serialized`; xử lý hình học ở Blender trước |
-| `Chưa nhận diện đủ nhà và đường` | Kiểm tra tên ID/file có `building`, `road`, `path`; kiểm tra đã xuất đủ cả hai nhóm và tắt Split File |
-| Thiếu file XML/PLY | Chạy từ gốc project; giữ cấu trúc XML và `meshes/`; kiểm tra đường dẫn `filename` trong XML |
-| Lỗi vật liệu khi load scene | Chạy cell tạo `test-Manhattan-materials.xml`, rồi nạp đúng file đã xử lý |
-| CUDA/variant không khởi tạo được | Kiểm tra GPU/driver và kernel; nếu chuyển LLVM thì restart kernel trước khi chạy lại |
-| Preview trắng hoặc chỉ hiện chuỗi widget | Dùng kernel `.venv`, kiểm tra widget JupyterLab và WebGL trình duyệt; khởi động lại Jupyter sau khi cài dependency |
-| Không có đường truyền | Kiểm tra Tx/Rx nằm trong vùng scene, không nằm trong nhà/dưới mặt đường; kiểm tra đơn vị và cấu hình tương tác |
-| Chạy lại cell thêm Tx/Rx báo trùng tên | Nạp lại scene hoặc restart kernel rồi chạy từ đầu |
-| Thêm terrain nhưng không thấy trong mô phỏng | Bộ lọc XML hiện chỉ giữ nhà và đường/lối đi; bổ sung nhóm và vật liệu cho terrain |
+| Blosm tab is missing | Enable the add-on, press `N` in the 3D Viewport, and check the data directory |
+| Mitsuba export option is missing | Check add-on/extension compatibility with Blender and dependencies in Blender's Python |
+| `Only triangle meshes are supported` | Check exported shape types; convert geometry to meshes and triangulate in Blender, then export again |
+| Unsupported geometry error (`Còn hình học không hỗ trợ`) | The XML cell found a type other than `ply`, `obj`, or `serialized`; prepare the geometry in Blender first |
+| Missing building/road groups (`Chưa nhận diện đủ nhà và đường`) | Check IDs/filenames for `building`, `road`, or `path`; export both groups and disable Split File |
+| XML/PLY file is missing | Run from the project root, keep the XML and `meshes/` structure together, and check XML `filename` paths |
+| Material error when loading the scene | Run the cell that creates `test-Manhattan-materials.xml`, then load that processed file |
+| CUDA/variant initialization fails | Check the GPU, driver, and kernel; restart the kernel before switching to LLVM |
+| Preview is blank or only shows widget text | Use the `.venv` kernel, check JupyterLab widgets and browser WebGL, and restart Jupyter after installing dependencies |
+| No propagation paths | Check that Tx/Rx are within the scene, outside buildings, and above the road surface; verify units and interaction settings |
+| Rerunning the Tx/Rx cell reports duplicate names | Reload the scene or restart the kernel and run from the beginning |
+| Added terrain is missing from the simulation | The XML filter currently retains only buildings and roads/paths; add a terrain group and material |
 
-Khi dùng khu vực mới: lưu nguồn OSM/Blender, xuất XML cùng mesh, cập nhật đường dẫn đầu vào/đầu ra trong notebook, kiểm tra số mesh từng nhóm, đặt lại Tx/Rx rồi chạy toàn bộ quy trình.
+For a new area, save the OSM/Blender source files, export the XML and meshes together, update the notebook's input/output paths, check mesh counts by group, select new Tx/Rx positions, and run the entire workflow.
