@@ -1,0 +1,112 @@
+<?xml version='1.0' encoding='utf-8'?>
+<scene version="2.1.0">
+  <bsdf type="diffuse" id="mat-itu_brick" />
+  <bsdf type="diffuse" id="mat-itu_asphalt_concrete" />
+  <shape type="ply" id="elm__18" name="elm__18">
+    <string name="filename" value="meshes/map_osm_buildings-wall.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__19" name="elm__19">
+    <string name="filename" value="meshes/map_osm_buildings-roof.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__20" name="elm__20">
+    <string name="filename" value="meshes/map_osm_buildings-3c2d28.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__21" name="elm__21">
+    <string name="filename" value="meshes/map_osm_buildings-black.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__22" name="elm__22">
+    <string name="filename" value="meshes/map_osm_buildings-98766a.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__23" name="elm__23">
+    <string name="filename" value="meshes/map_osm_buildings-a16d45.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__24" name="elm__24">
+    <string name="filename" value="meshes/map_osm_buildings-606257.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__25" name="elm__25">
+    <string name="filename" value="meshes/map_osm_buildings-b7b1a1.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__26" name="elm__26">
+    <string name="filename" value="meshes/map_osm_buildings-aa7c65.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__27" name="elm__27">
+    <string name="filename" value="meshes/map_osm_buildings-aaa27b.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__28" name="elm__28">
+    <string name="filename" value="meshes/map_osm_buildings-d3ceb1.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__29" name="elm__29">
+    <string name="filename" value="meshes/map_osm_buildings-d4dff1.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__30" name="elm__30">
+    <string name="filename" value="meshes/map_osm_buildings-brown.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__31" name="elm__31">
+    <string name="filename" value="meshes/map_osm_buildings-eeede7.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__32" name="elm__32">
+    <string name="filename" value="meshes/map_osm_buildings-red.ply" />
+    <boolean name="face_normals" value="true" />
+    <ref name="bsdf" id="mat-itu_brick" />
+  </shape>
+  <shape type="ply" id="elm__36" name="elm__36">
+    <string name="filename" value="meshes/map_osm_roads_primary.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__38" name="elm__38">
+    <string name="filename" value="meshes/map_osm_roads_pedestrian.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__40" name="elm__40">
+    <string name="filename" value="meshes/map_osm_roads_residential.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__42" name="elm__42">
+    <string name="filename" value="meshes/map_osm_roads_secondary.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__44" name="elm__44">
+    <string name="filename" value="meshes/map_osm_paths_cycleway.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__46" name="elm__46">
+    <string name="filename" value="meshes/map_osm_paths_footway.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__48" name="elm__48">
+    <string name="filename" value="meshes/map_osm_roads_service.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+  <shape type="ply" id="elm__50" name="elm__50">
+    <string name="filename" value="meshes/map_osm_paths_steps.ply" />
+    <ref name="bsdf" id="mat-itu_asphalt_concrete" />
+  </shape>
+</scene>
